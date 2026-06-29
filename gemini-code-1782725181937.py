@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
@@ -21,7 +20,6 @@ and projects the data into an interactive **3D PCA space**.
 """)
 
 # --- FILE LOADING ---
-# Looks for the file in the root GitHub directory, or falls back to an uploader
 @st.cache_data
 def load_data(file_path="iris.xlsx - iris.csv"):
     try:
@@ -31,21 +29,21 @@ def load_data(file_path="iris.xlsx - iris.csv"):
 
 df = load_data()
 
-# Sidebar fallback if file isn't committed to GitHub yet
+# Fallback UI if the file isn't found in the root directory
 if df is None:
     st.sidebar.header("📁 Upload Dataset")
     uploaded_file = st.sidebar.file_uploader("Upload 'iris.xlsx - iris.csv'", type=["csv"])
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
     else:
-        st.info("👋 Please commit 'iris.xlsx - iris.csv' to your GitHub repository or upload it via the sidebar to begin.")
+        st.info("👋 Setup Tip: Commit 'iris.xlsx - iris.csv' to the root of your GitHub repository for automatic loading.")
         st.stop()
 
 # --- FEATURE SELECTION & PREPROCESSING ---
 features = ['sepal.length', 'sepal.width', 'petal.length', 'petal.width']
 X = df[features]
 
-# Scale features for distance-based calculation
+# Scale features for distance-based calculations
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
@@ -58,10 +56,9 @@ col1, col2 = st.columns([1, 1])
 
 with col1:
     st.subheader("📈 1. The Elbow Method")
-    st.write("Look for the 'inflection point' or elbow where the WCSS drop slows down.")
+    st.write("Identify the inflection point where the WCSS drop flattens out.")
     
-  # --- Inside app.py (Replacing the matplotlib snippet) ---
-    # Calculate WCSS
+    # Calculate WCSS (Within-Cluster Sum of Squares)
     wcss = []
     k_range = range(1, max_k + 1)
     for k in k_range:
@@ -69,36 +66,37 @@ with col1:
         kmeans.fit(X_scaled)
         wcss.append(kmeans.inertia_)
     
-    # Create an interactive Line Chart using Plotly instead of Matplotlib
+    # Render interactive Line Chart using Plotly
     df_elbow = pd.DataFrame({'k': list(k_range), 'WCSS': wcss})
     fig_elbow = px.line(
         df_elbow, 
         x='k', 
         y='WCSS', 
-        title='Determining Optimal K',
-        markers=True
+        markers=True,
+        template="plotly_white"
     )
-    fig_elbow.update_traces(line_color='#1f77b4', marker=dict(size=8, symbol='x'))
+    fig_elbow.update_traces(line_color='#1f77b4', marker=dict(size=8, symbol='circle'))
     fig_elbow.update_layout(
-        xaxis_title='Number of clusters (k)',
-        yaxis_title='WCSS (Inertia)',
-        margin=dict(l=20, r=20, t=40, b=20)
+        xaxis=dict(title='Number of clusters (k)', tickmode='linear', tick0=1, dtick=1),
+        yaxis=dict(title='WCSS (Inertia)'),
+        margin=dict(l=10, r=10, t=10, b=10),
+        height=400
     )
     st.plotly_chart(fig_elbow, use_container_width=True)
 
-# Dynamic K-selection based on Elbow analysis
+# Dynamic Cluster Selection Input
 optimal_k = st.sidebar.number_input("Select Target Clusters (k)", min_value=1, max_value=max_k, value=3)
 
-# Run final K-Means algorithm
+# Execute final K-Means 
 kmeans = KMeans(n_clusters=optimal_k, init='k-means++', max_iter=300, n_init=10, random_state=42)
 df['Cluster'] = kmeans.fit_predict(X_scaled)
-df['Cluster'] = df['Cluster'].astype(str) # Convert to string category for discrete coloring
+df['Cluster'] = df['Cluster'].astype(str) # Convert to discrete categorical string for explicit coloring
 
 with col2:
     st.subheader("🧊 2. Dynamic 3D PCA Projection")
-    st.write(f"Visualizing data points grouped into **{optimal_k} clusters**.")
+    st.write(f"Visualizing spatial distribution using **{optimal_k} clusters**.")
     
-    # Dimensionality reduction for 3D mapping
+    # Dimensionality reduction for 3D layout
     pca = PCA(n_components=3)
     X_pca = pca.fit_transform(X_scaled)
     
@@ -106,7 +104,7 @@ with col2:
     df['PCA2'] = X_pca[:, 1]
     df['PCA3'] = X_pca[:, 2]
     
-    # Render interactive Plotly Graph
+    # Render interactive 3D Scatter Plot
     fig_3d = px.scatter_3d(
         df, 
         x='PCA1', y='PCA2', z='PCA3',
@@ -124,12 +122,13 @@ with col2:
             yaxis=dict(backgroundcolor="rgba(0,0,0,0)"),
             zaxis=dict(backgroundcolor="rgba(0,0,0,0)")
         ),
-        legend=dict(yanchor="top", y=0.95, xanchor="left", x=0.05)
+        legend=dict(yanchor="top", y=0.95, xanchor="left", x=0.05),
+        height=400
     )
     
     st.plotly_chart(fig_3d, use_container_width=True)
 
-# --- DATA VIEW SECTION ---
+# --- DATAFRAME VIEW ---
 st.markdown("---")
 st.subheader("📋 Clustered Dataset Preview")
 st.dataframe(df[features + ['Cluster']].head(20), use_container_width=True)
