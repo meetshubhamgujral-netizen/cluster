@@ -60,6 +60,7 @@ with col1:
     st.subheader("📈 1. The Elbow Method")
     st.write("Look for the 'inflection point' or elbow where the WCSS drop slows down.")
     
+  # --- Inside app.py (Replacing the matplotlib snippet) ---
     # Calculate WCSS
     wcss = []
     k_range = range(1, max_k + 1)
@@ -68,14 +69,22 @@ with col1:
         kmeans.fit(X_scaled)
         wcss.append(kmeans.inertia_)
     
-    # Plot Elbow Curve
-    fig_elbow, ax = plt.subplots(figsize=(6, 4.2))
-    ax.plot(k_range, wcss, 'bx-', color='#1f77b4', linewidth=2)
-    ax.set_xlabel('Number of clusters (k)')
-    ax.set_ylabel('WCSS (Inertia)')
-    ax.set_title('Determining Optimal K')
-    ax.grid(True, linestyle='--', alpha=0.6)
-    st.pyplot(fig_elbow)
+    # Create an interactive Line Chart using Plotly instead of Matplotlib
+    df_elbow = pd.DataFrame({'k': list(k_range), 'WCSS': wcss})
+    fig_elbow = px.line(
+        df_elbow, 
+        x='k', 
+        y='WCSS', 
+        title='Determining Optimal K',
+        markers=True
+    )
+    fig_elbow.update_traces(line_color='#1f77b4', marker=dict(size=8, symbol='x'))
+    fig_elbow.update_layout(
+        xaxis_title='Number of clusters (k)',
+        yaxis_title='WCSS (Inertia)',
+        margin=dict(l=20, r=20, t=40, b=20)
+    )
+    st.plotly_chart(fig_elbow, use_container_width=True)
 
 # Dynamic K-selection based on Elbow analysis
 optimal_k = st.sidebar.number_input("Select Target Clusters (k)", min_value=1, max_value=max_k, value=3)
